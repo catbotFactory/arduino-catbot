@@ -3,11 +3,18 @@
 const int sXPin = 10;           // first servo pin
 const int sYPin = 11;           // second servo pin
 const int laserPin = 12;        // pin for the laser
-const int joyH = 0;             // Joy X axis
-const int joyV = 1;             // Joy Y axis
+const int joySw = 9;                // pin for the joystick switch
+const int joyH = 0;             // Joy X axis analog pin
+const int joyV = 1;             // Joy Y axis analog pin
 const int interval = 15;        // time between each reading
 
+const boolean serialOut = true;
+
 int joyVal;                     // variable to store the analog value from the joystick
+
+boolean currentState = LOW;     // current button state
+boolean lastState = LOW;        // last button state
+boolean laserState = LOW;        // last button state
 
 Servo servoX;                   // create servo object to control a servo
 Servo servoY;                   // create servo object to control a servo
@@ -17,16 +24,24 @@ void setup() {
   servoX.attach(sXPin);         // attaches the servo for the X axis
   servoY.attach(sYPin);         // attaches the servo for the X axis
 
-  pinMode(laserPin, OUTPUT);    // sers
+  pinMode(laserPin, OUTPUT);    // set the laser pin as OUTPUT
+  pinMode(joySw, INPUT_PULLUP); // set the joystick switch pin as INPUT with a pullup resistor
 
-  Serial.begin(9600);           // serial communication to see analog value from the stick
+  digitalWrite(laserPin, HIGH); // set the laser on!
+  if (serialOut == true) {
+    Serial.begin(9600);           // serial communication to see analog value from the stick
+  }
 }
 
 
 void loop(){
-  digitalWrite(laserPin, HIGH);
-  // Display Joystick values using the serial monitor
-  serialValues();
+  currentState = digitalRead(joySw);
+
+  if (serialOut == true) {
+    serialValues();
+  }
+
+  checkButtonState();
 
   // Read the horizontal joystick value  (value between 0 and 1023)
   joyVal = analogRead(joyH);
@@ -48,9 +63,36 @@ void loop(){
 * Display joystick values
 */
 void serialValues(){
-
+  Serial.print ("!joy:");
   Serial.print(analogRead(joyH));
   Serial.print (",");
   Serial.print(analogRead(joyV));
   Serial.println (";");
 }
+
+/* check if the button is pushed / relased */
+void checkButtonState(){
+  currentState = digitalRead(joySw);
+  if (currentState == HIGH && lastState == LOW){//if button has just been pressed
+    if (serialOut == true) {
+      Serial.println("!btn:released");
+    }
+    if (laserState == HIGH) {
+      if (serialOut == true) {
+        Serial.println("!lzr:on=>off");
+      }
+      laserState = LOW;
+      digitalWrite(laserPin, laserState);
+    } else {
+      if (serialOut == true) {
+        Serial.println("!lzr:off=>on");
+      }
+      laserState = HIGH;
+      digitalWrite(laserPin, laserState);
+    }
+  } else if(currentState == LOW && lastState == HIGH && serialOut == true){
+    Serial.println("!btn:pressed");
+  }
+  lastState = currentState;
+}
+
